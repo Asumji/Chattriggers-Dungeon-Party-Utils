@@ -29,7 +29,7 @@ register('Chat', (event) => {
 
   getrequest("https://api.mojang.com/users/profiles/minecraft/" + name).then(response => {
     let uuid = response["id"];
-    getrequest("https://api.hypixel.net/player?key=" + "dc30eb03-f088-4038-81a1-58e249f72c5c" + "&uuid=" + uuid).then(response => {
+    getrequest("https://api.hypixel.net/player?key=" + "api-key" + "&uuid=" + uuid).then(response => {
       getrequest("https://api.hypixel.net/skyblock/profiles?key=" + "dc30eb03-f088-4038-81a1-58e249f72c5c" + "&uuid=" + uuid).then(response => {
         let profiles = response["profiles"]
         let itemString = ""
