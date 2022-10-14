@@ -1,5 +1,6 @@
 import request from "requestV2/index";
 import PogObject from "PogData";
+const rarities = JSON.parse(FileLib.read("DungeonPartyUtils", "rarities.json"))
 
 const data = new PogObject("DungeonPartyUtils", {
   apiKey: "",
@@ -27,9 +28,9 @@ function decodeInv(data) {
   return items
 }
 
-function buildOutput(player, items, armor, secrets) {
+function buildOutput(player, items, armor, secrets, pet) {
   var output = new Message(
-    "§cName:§b " + player + "\n\n§l§6Items:§r\n" + items + "\n§l§6Armor:§r\n" + armor + "\n§l§6Secrets: §c" + secrets,
+    "§cName:§b " + player + "\n§l§6Secrets: §c" + secrets + "\n§l§6Spirit: " + pet[1] + "\n\n§l§6Items:§r\n" + items + "\n§l§6Armor:§r\n" + armor + "\n§l§6Pet:§r\n" + pet[0],
      new TextComponent("\n§4[Kick from Party]").setClick("run_command", "/party kick " + player));
   ChatLib.chat(output)
 }
@@ -57,10 +58,14 @@ register('Chat', (event) => {
     let uuid = response["id"];
     getrequest("https://api.hypixel.net/player?key=" + data.apiKey + "&uuid=" + uuid).then(response => {
       let secrets = response["player"]["achievements"]["skyblock_treasure_hunter"]
+      if (secrets == undefined) {
+        secrets = "0"
+      }
       getrequest("https://api.hypixel.net/skyblock/profiles?key=" + data.apiKey + "&uuid=" + uuid).then(response => {
         let profiles = response["profiles"]
         let itemString = ""
         let armorString = ""
+        let pets = ["§cNone","§cNo"]
         profiles.forEach(profile => {
           if (profile["members"][uuid]["inv_contents"] != null) {
             // Build Item String
@@ -83,7 +88,9 @@ register('Chat', (event) => {
                 }
               }
             }
-            itemString = itemString + profile["cute_name"] + ":" + string + "§r\n"
+            if (string != "") {
+              itemString = itemString + profile["cute_name"] + ":" + string + "§r\n"
+            }
           }
           if (profile["members"][uuid]["inv_armor"] != null) {
             //Build Armor String
@@ -104,8 +111,28 @@ register('Chat', (event) => {
               armorString = armorString + profile["cute_name"] + ":" + string + "§r\n"
             }
           }
+          if (profile["members"][uuid]["pets"] != null) {
+            if (profile["members"][uuid]["pets"].length != 0) {
+              for (let i = 0; i < profile["members"][uuid]["pets"].length; i++) {
+                if (profile["members"][uuid]["pets"][i]["type"] == "SPIRIT") {
+                  pets[1] = "§aYes"
+                }
+                if (profile["members"][uuid]["pets"][i]["active"] == true) {
+                  let type = profile["members"][uuid]["pets"][i]["type"]
+                  type = type.toLowerCase()
+                  type = type[0].toUpperCase() + type.slice(1,type.length)
+                  type = type.replace(/_/g, " ")
+                  if (pets[0] != "§cNone") {
+                    pets[0] = pets[0] + profile["cute_name"] + ": " + rarities[profile["members"][uuid]["pets"][i]["tier"]] + type + "§r\n"   
+                  } else {
+                    pets[0] = profile["cute_name"] + ": " + rarities[profile["members"][uuid]["pets"][i]["tier"]] + type + "§r\n"
+                  }
+                }
+              }
+            }
+          }
         })
-        buildOutput(name, itemString, armorString, secrets)
+        buildOutput(name, itemString, armorString, secrets, pets)
       })
     })
   });
