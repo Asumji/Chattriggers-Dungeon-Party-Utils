@@ -2,5 +2,6 @@
   "name": "DungeonPartyUtils",
   "creator": "Asumji",
   "version": "1.0.0",
+  "description": "SBE party finder replacement cuz admins do a little trolling.",
   "entry": "index.js"
 }
