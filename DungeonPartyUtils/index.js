@@ -1,6 +1,7 @@
 import request from "requestV2/index";
 import PogObject from "PogData";
 const rarities = JSON.parse(FileLib.read("DungeonPartyUtils", "rarities.json"))
+const cataLevelArray = [0, 50, 125, 235, 395, 625, 955, 1425, 2095, 3045, 4385, 6275, 8940, 12700, 17960, 25340, 35640, 50040, 70040, 97640, 135640, 188140, 259640, 356640, 488640, 668640, 911640, 1239640, 1684640, 2284640, 3084640, 4149640, 5559640, 7459640, 9959640, 13259640, 17559640, 23159640, 30359640, 39559640, 51559640, 66559640, 85559640, 109559640, 139559640, 177559640, 225559640, 285559640, 360559640, 453559640, 569809640]
 
 const data = new PogObject("DungeonPartyUtils", {
   apiKey: "",
@@ -19,6 +20,17 @@ const getrequest = function(url) {
   });
 }
 
+function getCurrentProfile(player) {
+  let profiles = player["profiles"]
+  let curProfile = [0, "None"]
+  profiles.forEach(profile => {
+    if (profile["last_save"] > curProfile[0]) {
+      curProfile = [profile["last_save"], profile["cute_name"]]
+    }
+  })
+  return curProfile[1]
+}
+
 function decodeInv(data) {
   let bytearray = java.util.Base64.getDecoder().decode(data);
   let inputstream = new java.io.ByteArrayInputStream(bytearray);   
@@ -28,9 +40,9 @@ function decodeInv(data) {
   return items
 }
 
-function buildOutput(player, items, armor, secrets, pet) {
+function buildOutput(player, items, armor, secrets, pet, cata) {
   var output = new Message(
-    "§cName:§b " + player + "\n§l§6Secrets: §c" + secrets + "\n§l§6Spirit: " + pet[1] + "\n\n§l§6Items:§r\n" + items + "\n§l§6Armor:§r\n" + armor + "\n§l§6Pet:§r\n" + pet[0],
+    "§cName:§b " + player + "\n§6Cata: §a" + cata.toString() + "\n§6Secrets: §c" + secrets + "\n§6Spirit: " + pet[1] + "\n\n§6Items:§r\n" + items + "\n§6Armor:§r\n" + armor + "\n§6Pet: §r" + pet[0],
      new TextComponent("\n§4[Kick from Party]").setClick("run_command", "/party kick " + player));
   ChatLib.chat(output)
 }
@@ -62,77 +74,87 @@ register('Chat', (event) => {
         secrets = "0"
       }
       getrequest("https://api.hypixel.net/skyblock/profiles?key=" + data.apiKey + "&uuid=" + uuid).then(response => {
+        let curProfile = getCurrentProfile(response)
         let profiles = response["profiles"]
         let itemString = ""
         let armorString = ""
         let pets = ["§cNone","§cNo"]
+        let cata = -1
         profiles.forEach(profile => {
-          if (profile["members"][uuid]["inv_contents"] != null) {
-            // Build Item String
+          if (profile["cute_name"] == curProfile) {
+            if (profile["members"][uuid]["inv_contents"] != null) {
+              // Build Item String
 
-            let items = decodeInv(profile["members"][uuid]["inv_contents"]["data"])
-            let length = items.func_74745_c(); //NBTTagList.tagCount()
-            itemArray = []
-            for(let i = 0; i < length; i++){                                    
-              item = items.func_150305_b(i); //NBTTagList.getCompoundTagAt()
-              if(!item.func_82582_d()) { //NBTTagCompound.hasNoTags()
-                Name = item.func_74781_a("tag").func_74781_a("display").func_74781_a("Name").toString().replace(/"/g,"") //NBTTagCompound.getTag()
-                itemArray.push(Name)
-              }
-            }
-            string = ""
-            for(let i = 0; i < itemArray.length; i++) {
-              for (let j = 0; j < data.relevantItems.length; j++) {
-                if (itemArray[i].toLowerCase().includes(data.relevantItems[j])) {
-                  string = string + " " + itemArray[i]
+              let items = decodeInv(profile["members"][uuid]["inv_contents"]["data"])
+              let length = items.func_74745_c(); //NBTTagList.tagCount()
+              itemArray = []
+              for(let i = 0; i < length; i++){                                    
+                item = items.func_150305_b(i); //NBTTagList.getCompoundTagAt()
+                if(!item.func_82582_d()) { //NBTTagCompound.hasNoTags()
+                  Name = item.func_74781_a("tag").func_74781_a("display").func_74781_a("Name").toString().replace(/"/g,"") //NBTTagCompound.getTag()
+                  itemArray.push(Name)
                 }
               }
+              string = ""
+              for(let i = 0; i < itemArray.length; i++) {
+                for (let j = 0; j < data.relevantItems.length; j++) {
+                  if (itemArray[i].toLowerCase().includes(data.relevantItems[j])) {
+                    string = string + " " + itemArray[i]
+                  }
+                }
+              }
+              if (string != "") {
+                itemString = itemString + string + "§r\n"
+              }
             }
-            if (string != "") {
-              itemString = itemString + profile["cute_name"] + ":" + string + "§r\n"
-            }
-          }
-          if (profile["members"][uuid]["inv_armor"] != null) {
-            //Build Armor String
+            if (profile["members"][uuid]["inv_armor"] != null) {
+              //Build Armor String
 
-            let armor = decodeInv(profile["members"][uuid]["inv_armor"]["data"])
-            let length2 = armor.func_74745_c();
-            string = ""
-            for (let i = length2; i > -1; i--) {
-              armorPiece = armor.func_150305_b(i)
-              if(!armorPiece.func_82582_d()) {
-                if (isDungeonItem(armorPiece)) {
-                  Name = armorPiece.func_74781_a("tag").func_74781_a("display").func_74781_a("Name").toString().replace(/"/g,"")
-                  string = string + " " + Name
+              let armor = decodeInv(profile["members"][uuid]["inv_armor"]["data"])
+              let length2 = armor.func_74745_c();
+              string = ""
+              for (let i = length2; i > -1; i--) {
+                armorPiece = armor.func_150305_b(i)
+                if(!armorPiece.func_82582_d()) {
+                  if (isDungeonItem(armorPiece)) {
+                    Name = armorPiece.func_74781_a("tag").func_74781_a("display").func_74781_a("Name").toString().replace(/"/g,"")
+                    string = string + " " + Name
+                  }
                 }
               }
+              if (string != "") {
+                armorString = armorString + string + "§r\n"
+              }
             }
-            if (string != "") {
-              armorString = armorString + profile["cute_name"] + ":" + string + "§r\n"
-            }
-          }
-          if (profile["members"][uuid]["pets"] != null) {
-            if (profile["members"][uuid]["pets"].length != 0) {
-              for (let i = 0; i < profile["members"][uuid]["pets"].length; i++) {
-                if (profile["members"][uuid]["pets"][i]["type"] == "SPIRIT") {
-                  pets[1] = "§aYes"
-                }
-                if (profile["members"][uuid]["pets"][i]["active"] == true) {
-                  let type = profile["members"][uuid]["pets"][i]["type"]
-                  type = type.toLowerCase()
-                  type = type[0].toUpperCase() + type.slice(1,type.length)
-                  type = type.replace(/_/g, " ")
-                  if (pets[0] != "§cNone") {
-                    pets[0] = pets[0] + profile["cute_name"] + ": " + rarities[profile["members"][uuid]["pets"][i]["tier"]] + type + "§r\n"   
-                  } else {
-                    pets[0] = profile["cute_name"] + ": " + rarities[profile["members"][uuid]["pets"][i]["tier"]] + type + "§r\n"
+            if (profile["members"][uuid]["pets"] != null) {
+              if (profile["members"][uuid]["pets"].length != 0) {
+                for (let i = 0; i < profile["members"][uuid]["pets"].length; i++) {
+                  if (profile["members"][uuid]["pets"][i]["type"] == "SPIRIT") {
+                    pets[1] = "§aYes"
+                  }
+                  if (profile["members"][uuid]["pets"][i]["active"] == true) {
+                    let type = profile["members"][uuid]["pets"][i]["type"]
+                    type = type.toLowerCase()
+                    type = type[0].toUpperCase() + type.slice(1,type.length)
+                    type = type.replace(/_/g, " ")
+                    if (pets[0] != "§cNone") {
+                      pets[0] = pets[0] + rarities[profile["members"][uuid]["pets"][i]["tier"]] + type + "§r\n"   
+                    } else {
+                      pets[0] = rarities[profile["members"][uuid]["pets"][i]["tier"]] + type + "§r\n"
+                    }
                   }
                 }
               }
             }
-          }
+            for (let i = 0; i < cataLevelArray.length; i++) {
+              	let cataXP = Math.floor(profile["members"][uuid]["dungeons"]["dungeon_types"]["catacombs"]["experience"])
+                if (cataLevelArray[i] <= cataXP) {
+                  cata += 1
+                }
+            }
+          } 
         })
-        buildOutput(name, itemString, armorString, secrets, pets)
+        buildOutput(name, itemString, armorString, secrets, pets, cata)
       })
     })
   });
